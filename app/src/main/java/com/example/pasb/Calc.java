@@ -23,7 +23,7 @@ public class Calc {
 
     public static float accEast, accNorth;
 
-
+    public static float SL;
 
 
     public static void quaternionToMatrix(){

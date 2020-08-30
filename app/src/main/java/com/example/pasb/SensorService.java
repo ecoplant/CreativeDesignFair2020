@@ -4,6 +4,7 @@ import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -11,7 +12,10 @@ import android.hardware.SensorManager;
 import android.media.AudioManager;
 import android.media.SoundPool;
 import android.os.IBinder;
+import android.speech.tts.TextToSpeech;
 import android.util.Log;
+
+import java.util.Locale;
 
 public class SensorService extends Service {
     public SensorService() {
@@ -25,6 +29,8 @@ public class SensorService extends Service {
     private SensorEventListener mStepListener;
     private SensorEventListener mOrntListener;
 
+    private TextToSpeech tts;
+
     public final static String TO_MAIN =
             "com.example.pasb.TO_MAIN";
 
@@ -36,46 +42,16 @@ public class SensorService extends Service {
     public static float[] ayRaws = new float[5];
     public static float[] azRaws = new float[5];
 
-    private int front,rear;
+    private float[] dist = new float[2];
+    private float[] angle = new float[2];
+    private float[] theta = new float[2];
 
     public static int stepcount=0;
 
-    private static int stepdetect=0;
+    private static long prevtime;
 
+    private static boolean functionswitch;
 
-    private class AccelerometerListener implements SensorEventListener {
-
-        @Override
-        public void onSensorChanged(SensorEvent sensorEvent) {
-
-            Calc.ax = (5.0f*Calc.ax - axRaws[front] + sensorEvent.values[0])/5.0f;
-            Calc.ay = (5.0f*Calc.ay - ayRaws[front] + sensorEvent.values[1])/5.0f;
-            Calc.az = (5.0f*Calc.az - azRaws[front] + sensorEvent.values[2])/5.0f;
-
-            rear = (rear+1)%5;
-
-            axRaws[rear] = sensorEvent.values[0];
-            ayRaws[rear] = sensorEvent.values[1];
-            azRaws[rear] = sensorEvent.values[2];
-
-            front = (front+1)%5;
-
-            Calc.vupdate();
-            Calc.pupdate();
-
-//            if(Calc.acc> Calc.accmax)
-//                Calc.accmax = Calc.acc;
-//            if(Calc.acc<Calc.accmin)
-//                Calc.accmin = Calc.acc;
-
-//            Calc.aConvert();
-//            Calc.accEast +=Calc.arx;
-//            Calc.accNorth +=Calc.ary;
-        }
-        @Override
-        public void onAccuracyChanged(Sensor sensor, int i) {
-        }
-    }
 
     private class OrientationListener implements SensorEventListener {
 
@@ -89,9 +65,36 @@ public class SensorService extends Service {
 
             Calc.quaternionToMatrix();
 
+            if (!functionswitch && (System.currentTimeMillis()-prevtime)>250) {
+
+                angle[0] = angle[1];
+                angle[1] = (float) (Math.atan2(Calc.c13, Calc.c23) * 180.0f / Math.PI);
+
+                String temptts;
+                if (Math.floor(angle[0] / 45.0f) != Math.floor(angle[1] / 45.0f)) {
+                    prevtime = System.currentTimeMillis();
+
+                    if((angle[0]>90.0f&&angle[1]<-90.0f)||(angle[0]<-90.0f&&angle[1]>90.0f)){
+                        temptts = "south";
+                    }
+                    else{
+                        int tempangle = Math.round((angle[0]+angle[1])/90.0f) * 45;
+                        if(tempangle>0)
+                            temptts = Integer.toString(tempangle) + "degrees, east";
+                        else if(tempangle<0)
+                            temptts = Integer.toString(-tempangle) + "degrees, west";
+                        else
+                            temptts = "north";
+                    }
+
+                    tts.speak(temptts, TextToSpeech.QUEUE_FLUSH, null);
+                }
+            }
+
             Intent intent = new Intent(TO_MAIN);
             sendBroadcast(intent);
         }
+
         @Override
         public void onAccuracyChanged(Sensor sensor, int i) {
         }
@@ -112,9 +115,9 @@ public class SensorService extends Service {
                 Calc.delX += SL*Calc.accEast/magnitude;
                 Calc.delY += SL*Calc.accNorth/magnitude;
 
-                Calc.accEast = Calc.accNorth = 0.0f;
-                Calc.accmax = -100.0f;
-                Calc.accmin = 100.0f;
+//                Calc.accEast = Calc.accNorth = 0.0f;
+//                Calc.accmax = -100.0f;
+//                Calc.accmin = 100.0f;
             }
         }
         @Override
@@ -129,6 +132,34 @@ public class SensorService extends Service {
             Calc.delX += Calc.SL * Calc.c13 / mag;
             Calc.delY += Calc.SL * Calc.c23 / mag;
 
+            if(MainActivity.functionswtich){
+                dist[0] = dist[1];
+                dist[1] = (float)Math.sqrt(Calc.delX*Calc.delX+Calc.delY*Calc.delY);
+                String temptts;
+                if(Math.floor(dist[0])!=Math.floor(dist[1])){
+                    temptts = Integer.toString((int) Math.floor(dist[1])) + "meter";
+                    tts.speak(temptts, TextToSpeech.QUEUE_FLUSH,null);
+                }
+
+                theta[0] = theta[1];
+                theta[1] = (float) (Math.atan2(Calc.delY, Calc.delX)*180.0f/Math.PI);
+                if (Math.floor(theta[0] / 30.0f) != Math.floor(theta[1] / 30.0f)) {
+                    if(theta[1]*theta[0]<0){
+                        temptts = "south";
+                    }
+                    else{
+                        int tempangle = Math.round((theta[0]+theta[1])/60.0f) * 30;
+                        if(tempangle>0)
+                            temptts = Integer.toString(tempangle) + "degrees, east";
+                        else if(tempangle<0)
+                            temptts = Integer.toString(-tempangle) + "degrees, west";
+                        else
+                            temptts = "north";
+                    }
+                    tts.speak(temptts, TextToSpeech.QUEUE_FLUSH, null);
+                }
+            }
+
         }
     };
 
@@ -138,10 +169,6 @@ public class SensorService extends Service {
 
         mSensorManager = (SensorManager)getSystemService(Context.SENSOR_SERVICE);
 
-//        lnaccl = mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
-//        mLnAcclListner = new AccelerometerListener();
-//        mSensorManager.registerListener(mLnAcclListner, lnaccl, SensorManager.SENSOR_DELAY_GAME);
-
         orientation = mSensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
         mOrntListener = new OrientationListener();
         mSensorManager.registerListener(mOrntListener, orientation, SensorManager.SENSOR_DELAY_GAME);
@@ -150,18 +177,41 @@ public class SensorService extends Service {
 //        mStepListener = new StepListener();
 //        mSensorManager.registerListener(mStepListener, step, SensorManager.SENSOR_DELAY_FASTEST);
 
-        Calc.delX = Calc.delY = Calc.delZ = 0;
-        Calc.vx = Calc.vy = Calc.vz = 0;
+        tts = new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
+            @Override
+            public void onInit(int i) {
+                if(i!=TextToSpeech.ERROR){
+                    tts.setLanguage(Locale.ENGLISH);
+                }
+            }
+        });
 
-
+        registerReceiver(stepReceiver, new IntentFilter(BLEService.STEP_DATA));
 
         Log.d("SensorService", "Service create");
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+
+        functionswitch = intent.getBooleanExtra("switch", true);
+
+        if(functionswitch){
+            Calc.delX = Calc.delY = Calc.delZ = 0;
+            tts.speak("Location Service", TextToSpeech.QUEUE_FLUSH, null);
+        }else{
+            prevtime = System.currentTimeMillis();
+            tts.speak("Orientation Service", TextToSpeech.QUEUE_FLUSH, null);
+        }
+
+        return super.onStartCommand(intent, flags, startId);
     }
 
     @Override
     public void onDestroy() {
 //        mSensorManager.unregisterListener(mLnAcclListner);
         mSensorManager.unregisterListener(mOrntListener);
+        unregisterReceiver(stepReceiver);
 //        mSensorManager.unregisterListener(mStepListener);
         Log.d("SensorService", "Service destroy");
     }

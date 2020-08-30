@@ -63,6 +63,8 @@ public class MainActivity extends AppCompatActivity {
 
     private ProgressDialog scanningDialog, connectingDialog;
 
+    public static boolean functionswtich = true;
+
     // managing service lifecycle here
     private final ServiceConnection mServiceConnection = new ServiceConnection() {
 
@@ -146,9 +148,9 @@ public class MainActivity extends AppCompatActivity {
             TextView Xtext = (TextView)findViewById(R.id.delX);
             TextView Ytext = (TextView)findViewById(R.id.delY);
             TextView Ztext = (TextView)findViewById(R.id.delZ);
-            Xtext.setText(Float.toString(Calc.delX));
-            Ytext.setText(Float.toString(Calc.delY));
-            Ztext.setText(Float.toString(Calc.delZ));
+            Xtext.setText(Float.toString(Calc.c13));
+            Ytext.setText(Float.toString(Calc.c23));
+            Ztext.setText(Float.toString(Calc.c33));
 
         }
     };
@@ -198,7 +200,9 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 Intent intent = new Intent(getApplicationContext(), SensorService.class);
+                intent.putExtra("switch", functionswtich);
                 startService(intent);
+                functionswtich = !functionswtich;
             }
         });
 

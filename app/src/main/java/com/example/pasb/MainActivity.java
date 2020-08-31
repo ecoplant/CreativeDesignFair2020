@@ -28,13 +28,18 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.ParcelUuid;
+import android.speech.tts.TextToSpeech;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.TextView;
 
+import java.security.Key;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity {
@@ -60,6 +65,8 @@ public class MainActivity extends AppCompatActivity {
 
     private final String BLE_TURNINGOFF_TEXT = "bluetooth adaptor turning off";
     private final String BLE_ON_TEXT = "bluetooth adaptor on";
+
+    private TextToSpeech tts;
 
     private ProgressDialog scanningDialog, connectingDialog;
 
@@ -98,6 +105,7 @@ public class MainActivity extends AppCompatActivity {
                     connectingDialog.dismiss();
                     scanLeDevice(false);
                     blestateText.setText("bluetooth connected");
+                    tts.speak("bluetooth connected",TextToSpeech.QUEUE_FLUSH, null);
                     break;
                 }
 
@@ -108,13 +116,14 @@ public class MainActivity extends AppCompatActivity {
                     }
                     scanLeDevice(false);
                     blestateText.setText("bluetooth disconnected");
+                    tts.speak("bluetooth disconnected",TextToSpeech.QUEUE_FLUSH, null);
                     break;
                 }
 
                 case BLEService.ACTION_GATT_SERVICES_DISCOVERED : {
                     List<BluetoothGattService> services = mBLEService.getSupportedGattServices();
                     for (BluetoothGattService service : services) {
-//                        Log.d(LOG_TAG, "Discovered service : " + service.getUuid());
+                        Log.d("Main", "Discovered service : " + service.getUuid());
                     }
                     break;
                 }
@@ -148,12 +157,33 @@ public class MainActivity extends AppCompatActivity {
             TextView Xtext = (TextView)findViewById(R.id.delX);
             TextView Ytext = (TextView)findViewById(R.id.delY);
             TextView Ztext = (TextView)findViewById(R.id.delZ);
-            Xtext.setText(Float.toString(Calc.c13));
-            Ytext.setText(Float.toString(Calc.c23));
-            Ztext.setText(Float.toString(Calc.c33));
+            Xtext.setText(Float.toString(Calc.delX));
+            Ytext.setText(Float.toString(Calc.delY));
+            Ztext.setText(Float.toString(Calc.delZ));
 
         }
     };
+
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        switch(event.getKeyCode()){
+            case KeyEvent.KEYCODE_VOLUME_UP : {
+                scanningDialog.show();
+                scanLeDevice(true);
+                break;
+            }
+            case KeyEvent.KEYCODE_VOLUME_DOWN : {
+                Intent intent = new Intent(getApplicationContext(), SensorService.class);
+                intent.putExtra("switch", functionswtich);
+                startService(intent);
+                functionswtich = !functionswtich;
+            }
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -172,6 +202,15 @@ public class MainActivity extends AppCompatActivity {
         filters = new ArrayList<>();
         ScanFilter filter = new ScanFilter.Builder().setServiceUuid(new ParcelUuid(UUID_ADC_SERVICE)).build();
         filters.add(filter);
+
+        tts = new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
+            @Override
+            public void onInit(int i) {
+                if(i!=TextToSpeech.ERROR){
+                    tts.setLanguage(Locale.ENGLISH);
+                }
+            }
+        });
 
         // progress dialog for while scanning for devices
         scanningDialog = new ProgressDialog(this);
@@ -316,26 +355,28 @@ public class MainActivity extends AppCompatActivity {
                     scanningDialog.dismiss();
                 // show connect dialog only when found for the first time
                 if(found == 1) {
-                    AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(MainActivity.this);
-                    alertDialogBuilder.setMessage("Device found. Do you want to connect?");
-                    alertDialogBuilder.setCancelable(false);
-                    alertDialogBuilder.setPositiveButton("Yes",
-                            new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialogInterface, int i) {
-                                    connectToDevice(btDevice);
-                                }
-                            });
-                    alertDialogBuilder.setNegativeButton("Cancel",
-                            new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialogInterface, int i) {
-                                    // stop scanning if user does not want to connect to device
-                                    scanLeDevice(false);
-                                }
-                            });
-                    AlertDialog alertDialog = alertDialogBuilder.create();
-                    alertDialog.show();
+                    connectToDevice(btDevice);
+
+//                    AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(MainActivity.this);
+//                    alertDialogBuilder.setMessage("Device found. Do you want to connect?");
+//                    alertDialogBuilder.setCancelable(false);
+//                    alertDialogBuilder.setPositiveButton("Yes",
+//                            new DialogInterface.OnClickListener() {
+//                                @Override
+//                                public void onClick(DialogInterface dialogInterface, int i) {
+//                                    connectToDevice(btDevice);
+//                                }
+//                            });
+//                    alertDialogBuilder.setNegativeButton("Cancel",
+//                            new DialogInterface.OnClickListener() {
+//                                @Override
+//                                public void onClick(DialogInterface dialogInterface, int i) {
+//                                    // stop scanning if user does not want to connect to device
+//                                    scanLeDevice(false);
+//                                }
+//                            });
+//                    AlertDialog alertDialog = alertDialogBuilder.create();
+//                    alertDialog.show();
                 }
             }
         }

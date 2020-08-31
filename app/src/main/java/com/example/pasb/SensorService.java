@@ -132,7 +132,7 @@ public class SensorService extends Service {
             Calc.delX += Calc.SL * Calc.c13 / mag;
             Calc.delY += Calc.SL * Calc.c23 / mag;
 
-            if(MainActivity.functionswtich){
+            if(functionswitch){
                 dist[0] = dist[1];
                 dist[1] = (float)Math.sqrt(Calc.delX*Calc.delX+Calc.delY*Calc.delY);
                 String temptts;
@@ -142,7 +142,7 @@ public class SensorService extends Service {
                 }
 
                 theta[0] = theta[1];
-                theta[1] = (float) (Math.atan2(Calc.delY, Calc.delX)*180.0f/Math.PI);
+                theta[1] = (float) (Math.atan2(Calc.delX, Calc.delY)*180.0f/Math.PI);
                 if (Math.floor(theta[0] / 30.0f) != Math.floor(theta[1] / 30.0f)) {
                     if(theta[1]*theta[0]<0){
                         temptts = "south";
@@ -156,7 +156,8 @@ public class SensorService extends Service {
                         else
                             temptts = "north";
                     }
-                    tts.speak(temptts, TextToSpeech.QUEUE_FLUSH, null);
+                    if(dist[1]>2.0f)
+                        tts.speak(temptts, TextToSpeech.QUEUE_FLUSH, null);
                 }
             }
 
@@ -198,10 +199,35 @@ public class SensorService extends Service {
 
         if(functionswitch){
             Calc.delX = Calc.delY = Calc.delZ = 0;
-            tts.speak("Location Service", TextToSpeech.QUEUE_FLUSH, null);
+
+            int initornt = (int) (Math.round(Math.atan2(Calc.c13, Calc.c23) * 18.0f / Math.PI) * 10d);
+            String temptts = "Location Service on, you are heading to";
+            if(initornt>0){
+                temptts = temptts + Integer.toString(initornt) +"degrees east";
+            }
+            else if(initornt<0){
+                temptts = temptts + Integer.toString(-initornt) +"degrees west";
+            }
+            else{
+                temptts = temptts + "north";
+            }
+            tts.speak(temptts, TextToSpeech.QUEUE_FLUSH, null);
+
         }else{
             prevtime = System.currentTimeMillis();
-            tts.speak("Orientation Service", TextToSpeech.QUEUE_FLUSH, null);
+
+            int initornt = (int) (Math.round(Math.atan2(Calc.delX, Calc.delY) * 18.0f / Math.PI) * 10d);
+            String temptts = "Orientation Service on, you are heading to";
+            if(initornt>0){
+                temptts = temptts + Integer.toString(initornt) +"degrees east";
+            }
+            else if(initornt<0){
+                temptts = temptts + Integer.toString(-initornt) +"degrees west";
+            }
+            else{
+                temptts = temptts + "north";
+            }
+            tts.speak(temptts, TextToSpeech.QUEUE_FLUSH, null);
         }
 
         return super.onStartCommand(intent, flags, startId);
